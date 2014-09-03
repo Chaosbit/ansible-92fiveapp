@@ -1,0 +1,61 @@
+---
+- hosts: 92fiveapp
+  remote_user: root
+
+  tasks:
+    - name: update apt repo
+      action: apt update-cache=yes
+
+    - name: upgrade
+      apt: upgrade=dist
+
+    - name: install mysql-server
+      apt: name=mysql-server state=installed
+
+    - name: install python mysql
+      apt: name=python-mysqldb state=installed
+
+    - name: create db
+      mysql_db: name=92fiveapp state=present
+
+    - name: create db user
+      mysql_user:   name=92fiveapp
+                    password=*****
+                    priv=92fiveapp.*:ALL
+                    state=present
+
+    - name: install apache2
+      action: apt name=apache2 state=installed
+
+    - name: install apache2 mods
+      apt: name={{ item }} state=installed
+      with_items:
+        - libapache2-mod-php5
+        - php5-mcrypt
+        - php5-gd
+        - php5-odbc
+        - php5-mysql
+
+    - name: remove default host
+      file: path=/etc/apache2/sites-enabled/000-default state=absent
+
+    - name: enable rewrite
+      apache2_module: state=present name=rewrite
+
+    - name: service apache2
+      action: service name=apache2 state=started
+
+    - name: checkout source
+      git:  repo=https://github.com/chintanbanugaria/92five.git
+            dest=/var/www/92fiveapp
+
+    - name: change owner
+      file: path=/var/www/92fiveapp group=www-data owner=www-data recurse=yes
+
+    - name: copy vhost
+      template: src=92fiveapp.vhost.j2 dest=/etc/apache2/sites-available/92fiveapp.vhost
+
+    - name: enable vhost
+      file: src=/etc/apache2/sites-available/92fiveapp.vhost
+            dest=/etc/apache2/sites-enabled/92fiveapp.vhost
+            state=link
